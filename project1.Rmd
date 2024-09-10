@@ -7,6 +7,7 @@ output:
   pdf_document: default
 ---
 
+
 ```{r}
 
 library("here")
@@ -26,10 +27,6 @@ if (!file.exists(here("data", "chocolate.RDS"))) {
     saveRDS(chocolate, file = here("data", "chocolate.RDS"))
 }
 
-
-```
-
-```{r}
 chocolate = readRDS(here("data", "chocolate.RDS"))
 as_tibble(chocolate)
 ```
@@ -40,6 +37,8 @@ glimpse(chocolate)
 library(ggplot2)
 library(dplyr)
 ```
+
+**Part 1**
 
 1. Make a histogram of the rating scores to visualize the overall distribution of scores. Change the number of bins from the default to 10, 15, 20, and 25. Pick on the one that you think looks the best. Explain what the difference is when you change the number of bins and explain why you picked the one you did.
 ```{r}
@@ -150,5 +149,139 @@ ggplot(fiftyPlusRatingGroup, aes(x = percentageGroup, y = rating)) +
   labs(x = "Cocoa Percentage Group", y = "Rating", title = "Boxplots of Ratings by Cocoa Percentage Group, Faceted by Country") 
 ```
 Cocoa Percentage Group ii is most highly rated. Between all the countries there are a few disagreements with the highest rated cocoa percentage group, between groups ii and iii for majority of the countries. 
+
+**Part 2**
+Part 2: Join two datasets together
+The goal of this part of the assignment is to join two datasets together. gapminder is a R package that contains an excerpt from the Gapminder data.
+
+Tasks
+1.Use this dataset it to create a new column called continent in our chocolate dataset that contains the continent name for each review where the country of bean origin is.
+2.Only keep reviews that have reviews from countries of bean origin with at least 10 reviews.
+3.Also, remove the country of bean origin named "Blend".
+Make a set of violin plots with ratings on the y-axis and continents on the x-axis.
+
+```{r}
+chocolate=chocolate %>%
+  mutate(continent = country_of_bean_origin)
+```
+
+
+```{r}
+library(gapminder)
+gapminder_continent= gapminder %>%
+  select(country, continent) %>%
+  distinct()
+
+
+countries_with_enough_reviews <- chocolate %>%
+  filter(country_of_bean_origin != "Blend") %>%
+  group_by(country_of_bean_origin) %>%
+  filter (n() >= 10) %>%
+  ungroup()
+
+
+chocolate_part2 = countries_with_enough_reviews %>%
+  left_join(gapminder_continent, by = c("country_of_bean_origin" = "country")) %>%
+  mutate(continent = case_when(
+    country_of_bean_origin %in% c("Fiji", "Papua New Guinea", "Vanuatu", "Solomon Islands") & is.na(continent) ~ "Australia",
+    country_of_bean_origin %in% c("Sao Tome", "Congo") & is.na(continent) ~ "Africa",
+    country_of_bean_origin %in% c("Trinidad", "Belize", "Grenada", "St. Lucia", "U.S.A.") & is.na(continent) ~ "Americas",
+    TRUE ~ continent  # Keep existing values
+  ))
+
+
+# check if there is NA in that column 
+#na_rows_continent = chocolate_part2 %>%
+ # filter(is.na(continent))
+
+ggplot(chocolate_part2, aes(x = continent, y = rating)) + geom_violin() +
+  labs(x = "Continent", y = "Rating", title = "Violin Plot of Continents vs. Ratings") 
+
+```
+
+**Part 3**
+1. Create a new set of columns titled beans, sugar, cocoa_butter, vanilla, letchin, and salt that contain a 1 or 0 representing whether or not that review for the chocolate bar contained that ingredient (1) or not (0).
+```{r}
+
+chocolate_part3 = chocolate %>%
+  select(review_date, ingredients, most_memorable_characteristics) %>%
+  mutate(
+    beans = as.integer(grepl("B", ingredients)), 
+    sugar = as.integer(grepl("S", ingredients)), 
+    cocoa_butter = as.integer(grepl ("C", ingredients)), 
+    vanilla = as.integer(grepl("V", ingredients)),
+    letchin = as.integer(grepl("L", ingredients)),
+    salt = as.integer(grepl("Sa", ingredients)),
+  )
+
+print(chocolate_part3)
+
+```
+2. Create a new set of columns titled char_cocoa, char_sweet, char_nutty, char_creamy, char_roasty, char_earthy that contain a 1 or 0 representing whether or not that the most memorable characteristic for the chocolate bar had that word (1) or not (0). For example, if the word “sweet” appears in the most_memorable_characteristics, then record a 1, otherwise a 0 for that review in the char_sweet column (Hint: check out str_detect() from the stringr package).
+```{r}
+chocolate_part3 = chocolate_part3 %>%
+  mutate(
+    char_cocoa = as.integer(grepl("cocoa", most_memorable_characteristics)), 
+    char_sweet = as.integer(grepl("sweet", most_memorable_characteristics)), 
+    char_nutty = as.integer(grepl ("nutty", most_memorable_characteristics)), 
+    char_creamy = as.integer(grepl("creamy", most_memorable_characteristics)),
+    char_roasty = as.integer(grepl("roasty", most_memorable_characteristics)),
+    char_earthy = as.integer(grepl("earthy", most_memorable_characteristics)),
+  )
+
+
+
+chocolate_part3 = subset(chocolate_part3, select = -c(ingredients, most_memorable_characteristics))
+
+print(chocolate_part3)
+
+```
+
+3. For each year (i.e. review_date), calculate the mean value in each new column you created across all reviews for that year. (Hint: If all has gone well thus far, you should have a dataset with 16 rows and 13 columns).
+```{r}
+mean_chocolate_part3 = chocolate_part3 %>%
+  group_by(review_date) %>%
+  summarize (
+    mean_beans = mean(beans, na.rm = TRUE),
+    mean_sugar = mean(sugar, na.rm = TRUE),
+    mean_cocoa_butter = mean(cocoa_butter, na.rm = TRUE),
+    mean_vanilla = mean(vanilla, na.rm = TRUE),
+    mean_letchin = mean(letchin, na.rm = TRUE),
+    mean_salt = mean(salt, na.rm = TRUE), 
+    mean_char_cocoa = mean(char_cocoa, na.rm = TRUE),
+    mean_char_nutty = mean(char_nutty, na.rm = TRUE),
+    mean_char_sweet = mean(char_sweet, na.rm = TRUE),
+    mean_char_creamy = mean(char_creamy, na.rm = TRUE),
+    mean_char_roasty = mean(char_roasty, na.rm = TRUE),
+    mean_char_earthy = mean(char_earthy, na.rm = TRUE)
+    
+  )
+print(mean_chocolate_part3)
+```
+
+4. Convert this wide dataset into a long dataset with a new feature and mean_score column.
+```{r}
+mean_chocolate_part3_long = mean_chocolate_part3 %>%
+  pivot_longer(
+    cols = starts_with("mean_"), 
+    names_to = "feature", 
+    values_to = "mean_score"
+  )
+
+print(mean_chocolate_part3_long)
+```
+
+**Part 4**
+Use the functions in ggplot2 package to make a scatter plot of the mean_scores (y-axis) over time (x-axis). There should be one plot (facet) for each feature. For full credit, your plot should include:
+
+1.An overall title for the plot and a subtitle summarizing key trends that you found. Also include a caption in the figure with your name.
+2.Both the observed points for the mean_score, but also a smoothed non-linear pattern of the trend
+3.All plots should be shown in the one figure
+4. There should be an informative x-axis and y-axis label
+
+```{r}
+ggplot(mean_chocolate_part3_long, aes(x = review_date, y = mean_score)) + geom_point() + geom_smooth(colour = "purple")+ facet_wrap(~feature, scales = "free_y") + labs(x = "Review Date", y = "Mean Score", title = "Plot of chocolate ingredients and characteristics over time", caption = "Kate Brown", subtitle = "Over time the amount of letchin and vanilla and mention of creamy as a characteristic in reviews steadily decreased") 
+```
+
 
 

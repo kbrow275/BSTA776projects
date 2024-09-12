@@ -276,6 +276,8 @@ print(mean_chocolate_part3_long)
 ```
 
 **Part 4**
+
+
 Use the functions in ggplot2 package to make a scatter plot of the mean_scores (y-axis) over time (x-axis). There should be one plot (facet) for each feature. For full credit, your plot should include:
 
 1.An overall title for the plot and a subtitle summarizing key trends that you found. Also include a caption in the figure with your name.
@@ -286,8 +288,11 @@ Use the functions in ggplot2 package to make a scatter plot of the mean_scores (
 ```{r}
 ggplot(mean_chocolate_part3_long, aes(x = review_date, y = mean_score)) + geom_point() + geom_smooth(colour = "purple")+ facet_wrap(~feature, scales = "free_y") + labs(x = "Review Date", y = "Mean Score", title = "Plot of chocolate ingredients and characteristics over time", caption = "Kate Brown", subtitle = "Over time the amount of letchin and vanilla and mention of creamy as a characteristic in reviews steadily decreased")
 ```
-**Part 5**
 
+
+
+
+**Part 5**
 ```{r}
 
 chocolate_part5 <- chocolate %>%
@@ -344,7 +349,7 @@ ggplot(percent_mean, aes(x = country_of_bean_origin, y = avg_percent)) +
 4. Making the line width 1 and outline of the bar colors yellow makes it hard to actually see the fill and and the yellow is very similar to the background color making it hard on the readers eye to tell the difference. 
 5. Setting the base size to 17 makes the x and y axis much larger than the actual graph. With this adjustment the labels on the x and y axis are much larger than the contents on the graph.
 6. Customizing the scale on the y access to range from 0 to 80 counting by 4 makes the values unreadable because there are so many values of a large size print trying to be fit on a small graph. 
-7. Setting the aspect ratio to 1/12 makes the graph and long. This ultimately makes the axis harder to read and all the bars even smaller.
+7. Setting the aspect ratio to 1/12 makes the graph skinny and long. This ultimately makes the axis harder to read and all the bars even smaller.
 
 
 

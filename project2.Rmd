@@ -1,0 +1,260 @@
+---
+title: "Project2"
+author: "Kate Brown"
+date: "2024-09-12"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library("tidyverse")
+library("ggplot2")
+library("tidytuesdayR")
+library("lubridate")
+```
+
+
+
+# Part 1   
+## Part 1A: Exponential Transformation
+
+```{r}
+Exp = function(x, k) {
+  result = 1
+  for ( i in 1:k){
+    result = result + (x^i)/factorial(i)
+    #print((x^i)/factorial(i)) #show what is being added to the sequence each time
+    
+  }
+  return(result)
+  
+}
+
+Exp(2,3)
+
+```
+
+## Part 1B: Sample Mean and sample standard deviation
+
+```{r}
+sample_mean = function(x) {
+  N = length(x)
+  mean= sum(x)/N
+  return(mean)
+
+}
+sample_sd = function(x) {
+  N = length(x)
+  mean = sum(x)/N
+  sum_sq = sum((x - mean)^2)
+  sd = sqrt(sum_sq / (N - 1))
+  return(sd)
+}
+
+x = c(2,4,5,6)
+sample_mean(x)
+sample_sd(x)
+```
+
+## Part 1C: Confidence Intervals 
+```{r}
+calculate_CI = function(x, conf){
+  mean = sample_mean(x)
+  sd = sample_sd(x)
+  alpha = 1 - conf
+  N = length(x)
+  degrees_freedom = N - 1
+  standard_error = sd / sqrt(N)
+  t_score = qt(p = alpha / 2, df = degrees_freedom, lower.tail = FALSE)
+  margain_of_error = t_score * standard_error
+  upper_bound = mean + margain_of_error
+  lower_bound = mean - margain_of_error
+  return(c(lower_bound = lower_bound, upper_bound = upper_bound))
+  
+}
+x = c(2,4,5,6)
+CI = calculate_CI(x, conf=0.95)
+
+CI2 = calculate_CI(x, conf=0.75)
+
+
+print(CI)
+print(CI2)
+
+
+
+```
+
+# Part 2: Wrangling Data
+```{r}
+
+library(here)
+if (!file.exists(here("data", "tuesdata_rainfall.RDS"))) {
+    tuesdata <- tidytuesdayR::tt_load("2020-01-07")
+    rainfall <- tuesdata$rainfall
+    temperature <- tuesdata$temperature
+
+    # save the files to RDS objects
+    saveRDS(tuesdata$rainfall, file = here("data", "tuesdata_rainfall.RDS"))
+    saveRDS(tuesdata$temperature, file = here("data", "tuesdata_temperature.RDS"))
+}
+
+rainfall <- readRDS(here("data", "tuesdata_rainfall.RDS"))
+temperature <- readRDS(here("data", "tuesdata_temperature.RDS"))
+
+glimpse(rainfall)
+```
+```{r}
+glimpse(temperature)
+```
+```{r}
+#task1
+rainfall = drop_na(rainfall)
+#task2
+rainfall = rainfall %>%
+  mutate(date = ymd(base::paste(year, month, day, sep = "-"))) 
+#task3
+rainfall = rainfall %>%
+  mutate(city_name = toupper(city_name)) %>%
+  select(-c(month, day))
+#task4
+```
+
+
+```{r}
+
+df = rainfall %>%
+  inner_join(temperature, by = c("city_name", "date"), relationship = "many-to-many")
+
+
+
+```
+
+
+#Part 3- Data Visualization
+
+##Part 3a: plotting temperature data over time
+```{r}
+greater_fourteen = df %>%
+  filter(year >= 2014) 
+
+ggplot(greater_fourteen, aes(x=date, y=temperature, color=temp_type)) + geom_line() + facet_wrap(~city_name) + labs(title = "Temperature over Time by City", x = "Date", y = "Temperature in Celsius", color = "Temperature Type", caption="Kate Brown", subtitle = "The city of Canberra reached the lowest temperatures compared to other \ncities. Melbourne minimum temperatures Brisbane maximum \ntemperatures have the least variability.")
+```
+
+##Part 3b: plotting rainfall over time
+
+For this section,
+
+1.Write a short description of how you chose to design your function and why.
+  When creating my function I first decided to filter my data based on the city name and year indicated when the user runs the function because these are the variables needed to create the graph. Then I used if statements to make ensure that the city name and year inputted after actually included in the data set.I used the in operator to check if the inputted city is in the data set and had to put ! to indicate I wanted not in the dataset. If they are then a histogram graph will be created based on the inputs and if they are not an error message will appear. 
+
+
+2.Present the code for your function in the R markdown document.
+```{r}
+plot_rainfall_givencity = function(city, year){
+  df = df %>%
+    filter(city_name == city, year == year) 
+  
+  if (!city %in% unique(df$city_name)) {
+    stop(paste("Error:", city, "does not exist in the dataset."))
+  }
+  
+  if (!year %in% unique(df$year)) {
+    stop(paste("Error: ", year, "does not exist in the dataset."))
+  }
+  
+  
+    ggplot(df, aes(log(rainfall))) +
+    geom_histogram(fill = "pink", color = "brown", bins = 40) +             labs(title = paste( "Log Transformed Rainfall over time in", city, "in", year), x= "Log of Rainfall", y= "Count", caption = "Kate Brown", subtitle = "The log transformed rainfall over time decreases as thecount increases.")
+    
+}
+```
+
+3. Include at least one example of output from your function.
+```{r}
+plot_rainfall_givencity("SYDNEY", 2010)
+```
+
+
+#Part 4:Apply Functions and plot
+##Part 4A
+
+```{r}
+df_over_fourteen = df %>%
+  filter(year >= 2014)
+
+if (!exists("rain_df")) {
+  rain_df=data.frame(city_name = character(),
+                         year = integer(),
+                         mean_rainfall = numeric(),
+                         sd_rainfall = numeric(),
+                         lower_bound = numeric(),
+                         upper_bound = numeric(),
+                         stringsAsFactors = FALSE)
+}
+
+summary_stats = function(city, given_year) {
+  
+  filtered_df = df_over_fourteen %>%
+    filter(city_name == city, year == given_year)
+  if (!city %in% unique(filtered_df$city_name)) {
+    stop(paste("Error:", city, "does not exist in the dataset."))
+  }
+  
+  if (!given_year %in% unique(filtered_df$year)) {
+    stop(paste("Error: ", given_year, "does not exist in the dataset."))
+  }
+  
+  
+  new_row = filtered_df %>%
+    summarise(
+      mean_rainfall = sample_mean(rainfall),           
+      sd_rainfall = sample_sd(rainfall),                                  
+      .groups = 'drop'                                  
+    )
+  
+  CI=calculate_CI(filtered_df$rainfall, conf = 0.95)
+
+  new_row=new_row %>%
+    mutate(
+      lower_bound = CI[1],  
+      upper_bound = CI[2]   
+    )
+  
+  new_row$year = given_year
+  new_row$city_name = city
+  
+  new_row = new_row %>%
+    select(city_name, year, everything())
+  
+  assign("rain_df", rbind(rain_df, new_row), envir = .GlobalEnv)
+
+  
+  return(new_row)
+}
+
+cities = c("BRISBANE", "CANBERRA", "PERTH", "SYDNEY", "MELBOURNE")
+years = 2014:2019
+
+for(city in cities){
+  for (year in years){
+    summary_stats(city, year)
+  }
+}
+
+
+```
+
+
+##Part 4B
+```{r}
+ggplot(rain_df, aes(x = year, y = mean_rainfall, color= city_name)) + geom_point(size = 2) + geom_line(aes(group=city_name), size = 0.4)+ geom_errorbar(aes(ymin = lower_bound, ymax = upper_bound)) + labs(
+      title = "Mean Rainfall with 95% Confidence Intervals",
+      x = "Year",
+      y = "Mean Rainfall (mm)", color = "City Name"
+    ) + facet_wrap(~city_name, scales = "free_x")
+```
+
+
+
